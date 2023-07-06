@@ -1,1 +1,1 @@
-# analisisyvisualizacion_pokemon
+Trabajo realizado por un grupo de tres personas donde hemos realizado un análisis y distintas visualizaciones sobre las diferentes características de los pokémon para determinar cuáles son las claves al elegir los mejores pokémons para ganar combates 1 vs 1. Todo esto está explicado y representado en la historia visual de forma clara.
