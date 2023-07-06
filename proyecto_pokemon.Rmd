@@ -1,0 +1,768 @@
+---
+title: "Pokémon"
+author: "Irene Guerra Déniz, Joaquín Ibáñez Penalva, Raúl García Nuez"
+date: "2023-05-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+pokemon <- read.csv("pokemon_data.csv", sep=",", header=TRUE)
+pokemon <- pokemon[complete.cases(pokemon$Win.Percentage), ]
+pokemon
+```
+ 
+**Top 10 mejores pokemon** 
+ 
+```{r}
+top10 <- pokemon[order(pokemon$Win.Percentage, decreasing = TRUE), ]
+top10 <- top10[, c("Number","Name", "Total","Legendary", "Win.Percentage")]
+top10$Win.Percentage <- top10$Win.Percentage * 100
+head(top10, 10)
+```
+**Top 10 peores pokemon** 
+ 
+```{r}
+bottom10 <- pokemon[order(pokemon$Win.Percentage, decreasing = FALSE), ]
+bottom10 <- bottom10[, c("Number","Name", "Total","Legendary", "Win.Percentage")]
+bottom10$Win.Percentage <- bottom10$Win.Percentage * 100
+head(bottom10, 10)
+```
+**Top 10 mejores pokemon legendarios**
+
+```{r}
+top10$Legendary <- as.logical(top10$Legendary)
+mejores_legendarios_df <- subset(top10, Legendary == TRUE)
+head(mejores_legendarios_df, 10)
+```
+**Top 10 peores pokemon legendarios**
+
+```{r}
+bottom10$Legendary <- as.logical(bottom10$Legendary)
+peores_legendarios_df <- subset(bottom10, Legendary == TRUE)
+head(peores_legendarios_df, 10)
+```
+**Top 10 mejores pokemon no legendarios**
+
+```{r}
+mejores_no_legendarios_df <- subset(top10, Legendary == FALSE)
+head(mejores_no_legendarios_df, 10)
+```
+**Top 10 peores pokemon no legendarios**
+
+```{r}
+peores_no_legendarios_df <- subset(bottom10, Legendary == FALSE)
+head(peores_no_legendarios_df, 10)
+```
+**Matriz de correlación de estadísticas**
+
+```{r}
+library(corrplot)
+colnames(pokemon)[colnames(pokemon) == "Win.Percentage"] <- "Win %"
+pokemon$`Win %` <- pokemon$`Win %` * 100
+columnas <- subset(pokemon, select = -c(X, Number, Name, Type.1, Type.2, Total, Legendary, Generation))
+matriz_correlacion <- cor(columnas)
+matriz_correlacion
+```
+
+```{r}
+corrplot(matriz_correlacion, method = "color")
+```
+
+
+```{r}
+library(ggplot2)
+library(reshape2)
+df_correlacion <- melt(matriz_correlacion)
+
+library(hrbrthemes)
+library(plotly)
+p <- ggplot(df_correlacion, aes(x = Var1, y = Var2, fill = value)) + 
+  geom_tile() +
+  scale_fill_gradient(low="white", high="blue") +
+  ggtitle("Matriz de correlación Estadísticas y Win Rate") +
+  labs(x = "", y = "") +
+  theme_ipsum()
+p
+
+ggplotly(p)
+```
+
+**Distribución de pokémon por tipo**
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+```
+
+```{r}
+frecuencia_tipo1 <- pokemon %>%
+  filter(Type.1 != "NA") %>%
+  group_by(Type.1) %>%
+  summarize(Frecuencia_Tipo1 = n())
+
+# Calcular la frecuencia de Tipo2
+frecuencia_tipo2 <- pokemon %>%
+  filter(Type.2 != "NA") %>%
+  group_by(Type.2) %>%
+  summarize(Frecuencia_Tipo2 = n())
+
+# Combinar las frecuencias de Tipo1 y Tipo2
+frecuencia_total <- left_join(frecuencia_tipo1, frecuencia_tipo2, by = c("Type.1" = "Type.2")) %>%
+  mutate(Frecuencia_Total = Frecuencia_Tipo1 + Frecuencia_Tipo2) %>%
+  select(Tipo = Type.1, Frecuencia_Total)
+
+mis_colores <- c("#98bd2d", "#5e5c69", "#096dcd", "#f2d74a", "#ef92e1", "#d1435f", "#fba147", "#97addf", "#546dad", "#5dbd58", "#d77e4d", "#75cfc0", "#959ba3", "#ac64c9", "#f47976", "#c6ba89", "#528e9f", "#509bda")
+
+ggplot(frecuencia_total, aes(x = Tipo, y = Frecuencia_Total, fill=Tipo)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = mis_colores) +
+  labs(title = "Histograma de frecuencia de tipos de Pokémon",
+       x = "Tipo",
+       y = "Frecuencia Total") +
+  ggtitle("Distribución de Pokémon por tipo") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  guides(fill = FALSE)
+```
+
+```{r}
+win_por_tipo1 <- pokemon %>%
+  filter(Type.1 != "NA") %>%
+  group_by(Type.1) %>%
+  summarize(Porcentaje_Victorias1 = mean(`Win %`, na.rm = TRUE))
+
+dataset_ordenado <- arrange(win_por_tipo1, Porcentaje_Victorias1)
+
+ggplot(dataset_ordenado, aes(x = Type.1, y = Porcentaje_Victorias1, fill=Type.1)) +
+  scale_fill_manual(values = mis_colores) +
+  geom_bar(stat = "identity") +
+  labs(title = "Porcentajes de victoria de tipos de Pokémon",
+       x = "Tipo",
+       y = "Win Rate") +
+  ggtitle("Mejores Tipos (Tipo1)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  guides(fill = FALSE)
+
+
+data2 <- pokemon
+data2$Type.2 <- na_if(data2$Type.2, "")
+data2 <- data2[!is.na(data2$Type.2), ]
+
+win_por_tipo2 <- data2 %>%
+  filter(Type.2 != "NA") %>%
+  group_by(Type.2) %>%
+  summarize(Porcentaje_Victorias2 = mean(`Win %`, na.rm = TRUE))
+
+dataset_ordenado2 <- arrange(win_por_tipo2, Porcentaje_Victorias2)
+
+ggplot(dataset_ordenado2, aes(x = Type.2, y = Porcentaje_Victorias2, fill=Type.2)) +
+  scale_fill_manual(values = mis_colores) +
+  geom_bar(stat = "identity") +
+  labs(title = "Porcentajes de victoria de tipos de Pokémon",
+       x = "Tipo",
+       y = "Win Rate") +
+  ggtitle("Mejores Tipos (Tipo2)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  guides(fill = FALSE)
+
+```
+
+```{r}
+library(dplyr)
+
+win_por_tipo <- left_join(win_por_tipo1, win_por_tipo2, by = c("Type.1" = "Type.2")) %>%
+  mutate(Porcentaje_Victorias = (Porcentaje_Victorias1 + Porcentaje_Victorias2)/2) %>%
+  select(Tipo = Type.1, Porcentaje_Victorias)
+
+p2 <- ggplot(win_por_tipo, aes(x = Tipo, y = Porcentaje_Victorias, fill=Tipo)) +
+  scale_fill_manual(values = mis_colores) +
+  geom_bar(stat = "identity") +
+  labs(title = "Porcentajes de victoria de tipos de Pokémon",
+       x = "Tipo",
+       y = "Win Rate") +
+  ggtitle("Mejores Tipos") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  guides(fill = FALSE)
+
+p2
+
+ggplotly(p2)
+```
+
+**Gráficos de correlación**
+  
+```{r}
+# Crear un gráfico de dispersión con escala logarítmica en el eje de la velocidad
+library(ggplot2)
+
+# Crear un gráfico de dispersión con línea de regresión
+ggplot(pokemon, aes(x = Speed, y = `Win %`)) +
+  geom_point(color="steelblue4") +
+  geom_smooth(method = "loess", color = "red") +
+  labs(title = "Correlación entre Velocidad y Win %",
+       x = "Velocidad",
+       y = "Win %") +
+  theme_minimal()
+```
+
+```{r}
+ggplot(pokemon, aes(x = Total, y = `Win %`)) +
+  geom_point(color="steelblue4") +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "Correlación entre suma total de estadísticas y Win %",
+       x = "Total",
+       y = "Win %") +
+  theme_minimal()
+```
+
+```{r}
+ggplot(pokemon, aes(x = Attack, y = `Win %`)) +
+  geom_point(color="steelblue4") +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "Correlación entre Ataque y Win %",
+       x = "Ataque",
+       y = "Win %") +
+  theme_minimal()
+```
+
+```{r}
+ggplot(pokemon, aes(x = Defense, y = `Win %`)) +
+  geom_point(color="steelblue4") +
+  labs(title = "Correlación entre Defensa y Win %",
+       x = "Defensa",
+       y = "Win %") +
+  theme_minimal()
+```
+
+```{r}
+ggplot(pokemon, aes(x = HP, y = `Win %`)) +
+  geom_point(color="steelblue4") +
+  labs(title = "Correlación entre Puntos de Salud y Win %",
+       x = "Puntos de Salud",
+       y = "Win %") +
+  theme_minimal()
+```
+
+```{r}
+ggplot(pokemon, aes(x = Sp..Atk, y = `Win %`)) +
+  geom_point(color="steelblue4") +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "Correlación entre Ataque Especial y Win %",
+       x = "Ataque Especial",
+       y = "Win %") +
+  theme_minimal()
+```
+
+```{r}
+ggplot(pokemon, aes(x = Sp..Def, y = `Win %`)) +
+  geom_point(color="steelblue4") +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "Correlación entre Defensa Especial y Win %",
+       x = "Defensa Especial",
+       y = "Win %") +
+  theme_minimal()
+```
+
+**Winrate respecto a la generación**
+
+```{r}
+
+pokemon <- read.csv("pokemon_data.csv", sep=",", header=TRUE)
+winrate_generation <- aggregate(pokemon$Win.Percentage ~ pokemon$Generation, data = pokemon, FUN = mean)
+colnames(winrate_generation) <- c("Generation", "WinrateMean")
+winrate_generation$Generation <- factor(winrate_generation$Generation)
+```
+
+
+```{r}
+library(ggplot2)
+library(RColorBrewer)
+
+# Crear el gráfico y especificar la paleta de colores
+graf <- ggplot(data = winrate_generation, aes(x = Generation, y = WinrateMean, fill = Generation)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = brewer.pal(n = length(unique(winrate_generation$Generation)), name = "Set2")) +
+  labs(x = "Generación", y = "Winrate medio") +
+  ggtitle("Winrate medio por generación") +
+  scale_x_discrete(labels = levels(winrate_generation$Generation)) +
+  guides(fill = FALSE) + scale_y_continuous(breaks = seq(0, 0.7, 0.1)) +
+  theme_minimal()
+graf
+
+```
+
+**Tipo más común de cada generación**
+
+
+```{r}
+library(dplyr)
+Mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+pokemon$Type.2 <- na_if(pokemon$Type.2, "")
+pokemon_sin_na <- pokemon[!is.na(pokemon$Type.2), ]
+tipo1_generacion <- aggregate(pokemon$Type.1~pokemon$Generation, FUN = Mode)
+colnames(tipo1_generacion) <- c("Generation", "Tipo")
+tipo2_generacion <- aggregate(pokemon_sin_na$Type.2~pokemon_sin_na$Generation, FUN = Mode)
+colnames(tipo2_generacion) <- c("Generation", "Tipo")
+tipo1_comun <- unique(factor(tipo1_generacion$Tipo))
+tipo2_comun <- unique(factor(tipo2_generacion$Tipo))
+print(tipo1_comun)
+print(tipo2_comun)
+print(tipo1_generacion)
+print(tipo2_generacion)
+```
+**Número de pokémons por tipo**
+
+```{r}
+mis_colores <- c("#98bd2d", "#5e5c69", "#096dcd", "#f2d74a", "#ef92e1", "#d1435f", "#fba147", "#97addf", "#546dad", "#5dbd58", "#d77e4d", "#75cfc0", "#959ba3", "#ac64c9", "#f47976", "#c6ba89", "#528e9f", "#509bda")
+
+graf1 <- ggplot(pokemon, aes(Type.1, fill = Type.1)) + geom_histogram(stat = "count") +
+  scale_fill_manual(values = mis_colores) +
+  labs(x = "Tipo 1", y = "Número de Pokémons") +
+  ggtitle("Número de Pokémons por tipo 1") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  guides(fill = FALSE)
+graf1
+
+```
+
+```{r}
+graf2 <- ggplot(pokemon_sin_na, aes(Type.2, fill = Type.2)) + geom_histogram(stat = "count") +
+  scale_fill_manual(values = mis_colores) +
+  labs(x = "Tipo 2", y = "Número de Pokémons") +
+  ggtitle("Número de Pokémons por tipo 2") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  guides(fill = FALSE)
+graf2
+```
+
+```{r}
+# Calcular la frecuencia de Tipo1
+frecuencia_tipo1 <- pokemon %>%
+  filter(Type.1 != "NA") %>%
+  group_by(Type.1, Generation) %>%
+  summarize(Frecuencia_Tipo1 = n())
+
+# Calcular la frecuencia de Tipo2
+frecuencia_tipo2 <- pokemon %>%
+  filter(Type.2 != "NA") %>%
+  group_by(Type.2, Generation) %>%
+  summarize(Frecuencia_Tipo2 = n())
+
+# Combinar las frecuencias de Tipo1 y Tipo2
+frecuencia_total <- merge(frecuencia_tipo1, frecuencia_tipo2, by.x = c("Type.1", "Generation"), by.y = c("Type.2", "Generation"), all = TRUE) %>%
+  mutate(Frecuencia_Total = ifelse(is.na(Frecuencia_Tipo1), Frecuencia_Tipo2, ifelse(is.na(Frecuencia_Tipo2), Frecuencia_Tipo1, Frecuencia_Tipo1 + Frecuencia_Tipo2))) %>%
+  select(Tipo = Type.1, Frecuencia_Total, Generation)
+
+
+```
+
+```{r}
+graftotal <- ggplot(frecuencia_total, aes(Tipo, Frecuencia_Total, fill = Tipo)) + geom_bar(stat = "identity") +
+  scale_fill_manual(values = mis_colores) +
+  labs(x = "Tipos totales", y = "Número de Pokémons") +
+  ggtitle("Número de Pokémons por tipos totales") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  guides(fill = FALSE)
+graftotal
+```
+
+**Número de pokémon por tipo según generación (gif animado)**
+
+```{r}
+library(gganimate)
+library(transformr)
+
+anim <- graf1  +
+  geom_text(
+    x = 2, y = 31, label = paste("Generación ", as.character(pokemon$Generation)), 
+    color = "black", size = 5, hjust = 0, vjust = 1
+  ) +  
+  transition_states(Generation, transition_length = 1) +
+  enter_fade() +
+  exit_fade()
+anim <- animate(anim, nframes = 200)
+anim
+anim_save("animacion1.gif", anim)
+```
+
+```{r}
+
+anim2 <- graf2  +
+  geom_text(
+    x = 2, y = 22, label = paste("Generación ", as.character(pokemon_sin_na$Generation)), 
+    color = "black", size = 5, hjust = 0, vjust = 1
+  ) +  
+  transition_states(Generation, transition_length = 1) +
+  enter_fade() +
+  exit_fade() 
+
+
+anim2 <- animate(anim2, nframes = 200)
+anim2
+anim_save("animacion2.gif", anim2)
+```
+
+```{r}
+anim3 <- graftotal  +
+  geom_text(
+    x = 2, y = 22, label = paste("Generación ", as.character(frecuencia_total$Generation)), 
+    color = "black", size = 5, hjust = 0, vjust = 1
+  ) +  
+  transition_states(Generation, transition_length = 1) +
+  enter_fade() +
+  exit_fade() 
+
+
+anim3 <- animate(anim3, nframes = 200)
+anim3
+anim_save("animacion3.gif", anim3)
+```
+
+**Número de pokémon por generación** 
+
+```{r}
+pokemon$Generation <- factor(pokemon$Generation)
+
+graf2 <- ggplot(pokemon, aes(Generation, fill = Generation)) +
+  geom_histogram(stat = "count") +
+  guides(fill = FALSE) +
+  scale_fill_manual(values = brewer.pal(n = length(levels(pokemon$Generation)), name = "Set2")) +
+  labs(x = "Generación", y = "Frecuencia") +
+  ggtitle("Número de Pokémons por Generación") +
+  theme_minimal()
+
+graf2
+
+
+```
+**Proporciones de los tipos más comunes en las distintas generaciones**
+
+```{r}
+library(dbplyr)
+
+pokemon_water <- pokemon %>% filter(Type.1 == "Water")
+table_water <- table(pokemon_water$Generation)
+water <- as.data.frame(table_water)
+
+pokemon_normal <- pokemon %>% filter(Type.1 == "Normal")
+table_normal <- table(pokemon_normal$Generation)
+normal <- as.data.frame(table_normal)
+
+pokemon_ghost <- pokemon %>% filter(Type.1 == "Ghost")
+table_ghost <- table(pokemon_ghost$Generation)
+ghost <- as.data.frame(table_ghost)
+
+```
+
+```{r}
+library(gridExtra)
+# Crear el gráfico de pastel con porcentajes
+pie_chart1 <- ggplot(data = water, aes(x = "", y = Freq, fill = Var1)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +
+  theme_void() +
+  labs(fill = "Generación") +
+  ggtitle("Distribución de Pokémon de tipo Agua como primer tipo por Generación") +
+  geom_text(aes(label = scales::percent(Freq / sum(Freq))), position = position_stack(vjust = 0.5), size = 3)
+
+pie_chart2 <- ggplot(data = normal, aes(x = "", y = Freq, fill = Var1)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +
+  theme_void() +
+  labs(fill = "Generación") +
+  ggtitle("Distribución de Pokémon de tipo Normal como primer tipo por Generación") +
+  geom_text(aes(label = scales::percent(Freq / sum(Freq))), position = position_stack(vjust = 0.5), size = 3)
+
+pie_chart3 <- ggplot(data = ghost, aes(x = "", y = Freq, fill = Var1)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +
+  theme_void() +
+  labs(fill = "Generación") +
+  ggtitle("Distribución de Pokémon de tipo Fantasma como primer tipo por Generación") +
+  geom_text(aes(label = scales::percent(Freq / sum(Freq))), position = position_stack(vjust = 0.5), size = 3)
+
+pie_chart1
+pie_chart2
+pie_chart3
+```
+```{r}
+pokemon_flying <- pokemon %>% filter(Type.2 == "Flying")
+table_flying <- table(pokemon_flying$Generation)
+flying <- as.data.frame(table_flying)
+
+pokemon_psychic <- pokemon %>% filter(Type.2 == "Psychic")
+table_psychic <- table(pokemon_psychic$Generation)
+psychic <- as.data.frame(table_psychic)
+
+pokemon_grass <- pokemon %>% filter(Type.2 == "Grass")
+table_grass <- table(pokemon_grass$Generation)
+grass <- as.data.frame(table_grass)
+
+```
+
+
+```{r}
+pie_chart1 <- ggplot(data = flying, aes(x = "", y = Freq, fill = Var1)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +
+  theme_void() +
+  labs(fill = "Generación") +
+  ggtitle("Distribución de Pokémon de tipo Volador como segundo tipo por Generación") +
+  geom_text(aes(label = scales::percent(Freq / sum(Freq))), position = position_stack(vjust = 0.5), size = 3)
+
+pie_chart2 <- ggplot(data = psychic, aes(x = "", y = Freq, fill = Var1)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +
+  theme_void() +
+  labs(fill = "Generación") +
+  ggtitle("Distribución de Pokémon de tipo Psíquico como segundo tipo por Generación") +
+  geom_text(aes(label = scales::percent(Freq / sum(Freq))), position = position_stack(vjust = 0.5), size = 3)
+
+pie_chart3 <- ggplot(data = grass, aes(x = "", y = Freq, fill = Var1)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +
+  theme_void() +
+  labs(fill = "Generación") +
+  ggtitle("Distribución de Pokémon de tipo Planta como segundo tipo por Generación") +
+  geom_text(aes(label = scales::percent(Freq / sum(Freq))), position = position_stack(vjust = 0.5), size = 3)
+
+pie_chart1
+pie_chart2
+pie_chart3
+```
+
+**Mapa de calor de relación de las estadísticas con los tipos**
+
+```{r}
+
+tipos_vs_caract <- pokemon %>% group_by(Type.1) %>% summarise(HP = mean(HP), Attack = mean(Attack), Defense = mean(Defense), Sp..Atk = mean(Sp..Atk), Sp..Def = mean(Sp..Def), Speed = mean(Speed))
+tipos_vs_caract <- tipos_vs_caract %>%
+  pivot_longer(-Type.1, names_to = "Caracteristica", values_to = "Valor")
+
+# Crear el mapa de calor
+mapa_calor <- ggplot(tipos_vs_caract, aes(x = Type.1, y = Caracteristica, fill = Valor)) +
+  geom_tile(color = "white") +
+  labs(x = "Tipo 1", y = "Característica", fill = "Valor") +
+  ggtitle("Relación características con tipo 1") +
+  scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 90))
+mapa_calor
+```
+
+```{r}
+library(rgdal)
+library(broom)
+library(plotly)
+
+gg_interactive <- ggplotly(mapa_calor)
+gg_interactive
+```
+
+
+```{r}
+tipos_vs_caract <- pokemon_sin_na %>% group_by(Type.2) %>% summarise(HP = mean(HP), Attack = mean(Attack), Defense = mean(Defense), Sp..Atk = mean(Sp..Atk), Sp..Def = mean(Sp..Def), Speed = mean(Speed))
+tipos_vs_caract <- tipos_vs_caract %>%
+  pivot_longer(-Type.2, names_to = "Caracteristica", values_to = "Valor")
+
+# Crear el mapa de calor
+mapa_calor2 <- ggplot(tipos_vs_caract, aes(x = Type.2, y = Caracteristica, fill = Valor)) +
+  geom_tile(color = "white") +
+  labs(x = "Tipo 2", y = "Característica", fill = "Valor") +
+  ggtitle("Relación características con tipo 2") +
+  scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 90))
+mapa_calor2
+```
+
+```{r}
+gg_interactive2 <- ggplotly(mapa_calor2)
+gg_interactive2
+```
+**Estadísticas totales por tipo**
+
+```{r}
+tipos_vs_total <- pokemon %>% group_by(Type.1) %>% summarise(Total = mean(Total))
+graf1 <- ggplot(tipos_vs_total, aes(Type.1, Total, fill = Type.1)) + geom_bar(stat = "identity") +
+  scale_fill_manual(values = mis_colores) +
+  labs(x = "Tipo 1", y = "Estadísticas totales") +
+  ggtitle("Estadísticas totales por tipo 1") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  guides(fill = FALSE)
+graf1
+```
+
+
+
+```{r}
+tipos_vs_total <- pokemon_sin_na %>% group_by(Type.2) %>% summarise(Total = mean(Total))
+graf2 <- ggplot(tipos_vs_total, aes(Type.2, Total, fill = Type.2)) + geom_bar(stat = "identity") +
+  scale_fill_manual(values = mis_colores) +
+  labs(x = "Tipo 2", y = "Estadísticas totales") +
+  ggtitle("Estadísticas totales por tipo 2") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  guides(fill = FALSE)
+graf2
+```
+
+**Cracterísticas legendarios vs no legendarios**
+
+```{r}
+library(dbplyr)
+library(tidyverse)
+legendario_vs_no <- pokemon %>% group_by(Legendary) %>% summarise(HP = mean(HP), Attack = mean(Attack), Defense = mean(Defense), Sp..Atk = mean(Sp..Atk), Sp..Def = mean(Sp..Def), Speed = mean(Speed), Total = mean(Total))
+
+legendario_vs_no <- legendario_vs_no %>%
+  pivot_longer(cols = -Legendary, names_to = "Caracteristica", values_to = "Valor") %>% rename(Legendario = Legendary) %>%
+  mutate(Legendario = ifelse(Legendario == "False", "no", "si"))
+```
+
+
+```{r}
+grafico <- ggplot(legendario_vs_no, aes(x = Caracteristica, y = Valor, fill = Legendario)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Característica") +
+  ylab("Valor") +
+  ggtitle("Comparación de Características entre Legendario y No Legendario") +
+  theme_minimal()
+grafico
+```
+
+
+```{r}
+pokemon_winrate_sinna <- pokemon[!is.na(pokemon$Win.Percentage), ]
+legendario_vs_no_winrate <- pokemon_winrate_sinna %>% group_by(Legendary) %>% summarise(Winrate = mean(Win.Percentage))
+legendario_vs_no_winrate <- legendario_vs_no_winrate %>% rename(Legendario = Legendary) %>%
+  mutate(Legendario = ifelse(Legendario == "False", "no", "si"))
+
+graf5 <- ggplot(legendario_vs_no_winrate, aes(Legendario, Winrate, fill = Legendario)) + geom_bar(stat = "identity") + theme_minimal() + 
+  guides(fill = FALSE) +
+  xlab("Legendario") +
+  ylab("Ratio de victorias") +
+  ggtitle("Comparación de Winrate entre Legendario y No Legendario")
+graf5
+```
+
+**Número de pokémon legendarios por tipos**
+
+```{r}
+pokemons_legendarios <- pokemon %>% filter(Legendary == "True")
+mis_colores2 <- c("#5e5c69", "#096dcd", "#f2d74a", "#ef92e1", "#fba147", "#97addf", "#546dad", "#5dbd58", "#d77e4d", "#75cfc0", "#959ba3", "#f47976", "#c6ba89", "#528e9f", "#509bda")
+grafleg <- ggplot(pokemons_legendarios, aes(Type.1, fill = Type.1)) + geom_histogram(stat = "count") +
+  scale_fill_manual(values = mis_colores2) +
+  labs(x = "Tipo 1", y = "Número de Pokémons") +
+  ggtitle("Número de Pokémons legendarios por tipo 1") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  guides(fill = FALSE)
+grafleg
+```
+
+
+```{r}
+mis_colores3 <- c("#5e5c69", "#096dcd", "#f2d74a", "#ef92e1", "#d1435f", "#fba147", "#97addf", "#546dad", "#d77e4d", "#75cfc0", "#f47976", "#528e9f", "#509bda")
+pokemons_legendarios_sinna <- pokemons_legendarios[!is.na(pokemons_legendarios$Type.2), ]
+grafleg2 <- ggplot(pokemons_legendarios_sinna, aes(Type.2, fill = Type.2)) + geom_histogram(stat = "count") +
+  scale_fill_manual(values = mis_colores3) +
+  labs(x = "Tipo 2", y = "Número de Pokémons") +
+  ggtitle("Número de Pokémons legendarios por tipo 2") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  guides(fill = FALSE)
+grafleg2
+```
+
+Del tipo 1 faltan:
+
+```{r}
+tipo1unico <- unique(factor(pokemon$Type.1))
+legendarios1 <- unique(factor(pokemons_legendarios$Type.1))
+valores_faltantes <- setdiff(tipo1unico, legendarios1)
+valores_faltantes
+```
+
+Del tipo 2 faltan:
+
+```{r}
+tipo1unico <- unique(factor(pokemon$Type.2))
+legendarios2 <- unique(factor(pokemons_legendarios$Type.2))
+valores_faltantes <- setdiff(tipo1unico, legendarios2)
+valores_faltantes
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
